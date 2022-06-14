@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"html/template"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 )
 
 var users = map[string]string{"user1": "password", "user2": "password"}
@@ -39,14 +40,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method Not Supported", http.StatusMethodNotAllowed)
 		return
 	}
-	// ParseForm parses the raw query from the URL and updates r.Form
 	err := r.ParseForm()
 	if err != nil {
 		http.Error(w, "Please pass the data as URL form encoded", http.StatusBadRequest)
 		return
 	}
 
-	// Get username and password from the parsed form
 	username := r.Form.Get("username")
 	password := r.Form.Get("password")
 
