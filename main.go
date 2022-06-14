@@ -1,13 +1,15 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
+	_ "github.com/mattn/go-sqlite3"
 	"html/template"
 	"log"
 	"net/http"
 	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 )
 
 var users = map[string]string{"user1": "password", "user2": "password"}
@@ -27,6 +29,65 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 	}
 	log.Fatal(httpServer.ListenAndServe())
+
+	db, err := sql.Open("sqlite3", "./foo.db")
+	checkErr(err)
+
+	// insert
+	stmt, err := db.Prepare("INSERT INTO userinfo(username, departname, created) values(?,?,?)")
+	checkErr(err)
+
+	res, err := stmt.Exec("astaxie", "研发部门", "2012-12-09")
+	checkErr(err)
+
+	id, err := res.LastInsertId()
+	checkErr(err)
+
+	fmt.Println(id)
+	// update
+	stmt, err = db.Prepare("update userinfo set username=? where uid=?")
+	checkErr(err)
+
+	res, err = stmt.Exec("astaxieupdate", id)
+	checkErr(err)
+
+	affect, err := res.RowsAffected()
+	checkErr(err)
+
+	fmt.Println(affect)
+
+	// query
+	rows, err := db.Query("SELECT * FROM userinfo")
+	checkErr(err)
+	var uid int
+	var username string
+	var department string
+	var created time.Time
+
+	for rows.Next() {
+		err = rows.Scan(&uid, &username, &department, &created)
+		checkErr(err)
+		fmt.Println(uid)
+		fmt.Println(username)
+		fmt.Println(department)
+		fmt.Println(created)
+	}
+
+	rows.Close() //good habit to close
+
+	// delete
+	stmt, err = db.Prepare("delete from userinfo where uid=?")
+	checkErr(err)
+
+	res, err = stmt.Exec(id)
+	checkErr(err)
+
+	affect, err = res.RowsAffected()
+	checkErr(err)
+
+	fmt.Println(affect)
+
+	db.Close()
 }
 
 func logintest(w http.ResponseWriter, r *http.Request) {
@@ -84,5 +145,11 @@ func healthcheck(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
+	}
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
