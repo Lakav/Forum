@@ -3,92 +3,125 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
 	"log"
-	"net/http"
-	"time"
+	"strconv"
 
-	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
+	"net/http"
 )
 
-var users = map[string]string{"user1": "password", "user2": "password"}
-
-var store = sessions.NewCookieStore([]byte("my_secret_key"))
+var db *sql.DBINSERT INTO users (id, username, password)
+VALUES (
+	id:INTEGER,
+	'username:TEXT',
+	'password:TEXT'
+  );
+var err error
 
 func main() {
-	r := mux.NewRouter()
-	r.HandleFunc("/login", loginHandler).Methods("POST")
-	r.HandleFunc("/logout", logoutHandler).Methods("GET")
-	r.HandleFunc("/healthcheck", healthcheck).Methods("GET")
-	r.HandleFunc("/logintest", logintest).Methods("GET")
 
-	httpServer := &http.Server{
-		Handler:      r,
-		Addr:         ":8080",
-		WriteTimeout: 15 * time.Second,
+	database, connectionErr := sql.Open("sqlite3", "./database.db")
+	if connectionErr != nil {
+		log.Fatal(connectionErr)
 	}
-	log.Fatal(httpServer.ListenAndServe())
-
-}
-
-func logintest(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("./login.html"))
-	_ = tmpl.Execute(w, nil)
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != "POST" {
-		http.Error(w, "Method Not Supported", http.StatusMethodNotAllowed)
-		return
-	}
-	err := r.ParseForm()
+	defer database.Close()
+	createUser := `CREATE TABLE IF NOT EXISTS users (
+		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		username TEXT,
+		password TEXT
+		);`
+	statement, err := database.Prepare(createUser)
+	statement.Exec()
+	statement, _ = database.Prepare("INSERT INTO users (username, password) VALUES (?,?)")
+	statement.Exec("user1", "password1")
+	rows, err := database.Query("SELECT id, username, password FROM users")
 	if err != nil {
-		http.Error(w, "Please pass the data as URL form encoded", http.StatusBadRequest)
+		log.Fatal(err)
+	}
+	log.Println(rows)
+	var id int
+	var username string
+	var password string
+	for rows.Next() {
+		rows.Scan(&id, &username, &password)
+		fmt.Println(strconv.Itoa(id) + ": " + username + " " + password)
+	}
+
+	http.HandleFunc("/signup", signupPage)
+	http.HandleFunc("/login", loginPage)
+	http.HandleFunc("/", homePage)
+	http.ListenAndServe(":8080", nil)
+}
+
+func signupPage(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.ServeFile(res, req, "signup.html")
 		return
 	}
 
-	username := r.Form.Get("username")
-	password := r.Form.Get("password")
+	username := req.FormValue("username")
+	password := req.FormValue("password")
 
-	// Check if user exists
-	storedPassword, exists := users[username]
-	if exists {
-		// It returns a new session if the sessions doesn't exist
-		session, _ := store.Get(r, "session.id")
-		if storedPassword == password {
-			session.Values["authenticated"] = true
-			// Saves all sessions used during the current request
-			session.Save(r, w)
-		} else {
-			http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
+	var user string
+
+	err := db.QueryRow("SELECT username FROM users WHERE username=?", username).Scan(&user)
+
+	switch {
+	case err == sql.ErrNoRows:
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(res, "Server error, unable to create your account.", 500)
+			return
 		}
-		w.Write([]byte("Login successfully!"))
+
+		_, err = db.Exec("INSERT INTO users(username, password) VALUES(?, ?)", username, hashedPassword)
+		if err != nil {
+			http.Error(res, "Server error, unable to create your account.", 500)
+			return
+		}
+
+		res.Write([]byte("User created!"))
+		return
+	case err != nil:
+		http.Error(res, "Server error, unable to create your account.", 500)
+		return
+	default:
+		http.Redirect(res, req, "/", 301)
 	}
+}
+
+func loginPage(res http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+		http.ServeFile(res, req, "login.html")
+		return
+	}
+
+	username := req.FormValue("username")
+	password := req.FormValue("password")
+
+	var databaseUsername string
+	var databasePassword string
+
+	err := db.QueryRow("SELECT username, password FROM users WHERE username=?", username).Scan(&databaseUsername, &databasePassword)
+
+	if err != nil {
+		http.Redirect(res, req, "/login", 301)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(databasePassword), []byte(password))
+	if err != nil {
+		http.Redirect(res, req, "/login", 301)
+		return
+	}
+
+	res.Write([]byte("Hello" + databaseUsername))
 
 }
 
-func logoutHandler(w http.ResponseWriter, r *http.Request) {
-	// Get registers and returns a session for the given name and session store.
-	session, _ := store.Get(r, "session.id")
-	// Set the authenticated value on the session to false
-	session.Values["authenticated"] = false
-	session.Save(r, w)
-	w.Write([]byte("Logout Successful"))
-}
-
-func healthcheck(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session.id")
-	authenticated := session.Values["authenticated"]
-	if authenticated != nil && authenticated != false {
-		w.Write([]byte("Welcome!"))
-		return
-	} else {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
+func homePage(res http.ResponseWriter, req *http.Request) {
+	http.ServeFile(res, req, "index.html")
 }
 
 func checkErr(err error) {
