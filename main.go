@@ -6,13 +6,15 @@ import (
 	"log"
 	"strconv"
 
-	_ "github.com/mattn/go-sqlite3"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
+
+	"./auth"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-var db *sql.DB
 var err error
+
+var db *sql.DB
 
 func main() {
 
@@ -21,15 +23,8 @@ func main() {
 		log.Fatal(connectionErr)
 	}
 	defer database.Close()
-	createUser := `CREATE TABLE IF NOT EXISTS users (
-		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		username TEXT,
-		password TEXT
-		);`
-	statement, err := database.Prepare(createUser)
-	statement.Exec()
-	statement, _ = database.Prepare("INSERT INTO users (username, password) VALUES (?,?)")
-	statement.Exec("user1", "password1")
+	db = database
+
 	rows, err := database.Query("SELECT id, username, password FROM users")
 	if err != nil {
 		log.Fatal(err)
@@ -45,76 +40,10 @@ func main() {
 		fmt.Println(strconv.Itoa(id) + ": " + username + " " + password)
 	}
 
-	http.HandleFunc("/signup", signupPage)
-	http.HandleFunc("/login", loginPage)
+	http.HandleFunc("/signup", auth.SignupPage)
+	http.HandleFunc("/login", auth.LoginPage)
 	http.HandleFunc("/", homePage)
 	http.ListenAndServe(":8080", nil)
-}
-
-func signupPage(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
-		http.ServeFile(res, req, "signup.html")
-		return
-	}
-
-	username := req.FormValue("username")
-	password := req.FormValue("password")
-
-	var user string
-
-	err := db.QueryRow("SELECT username FROM users WHERE username=?", username).Scan(&user)
-
-	switch {
-	case err == sql.ErrNoRows:
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			http.Error(res, "Server error, unable to create your account.", 500)
-			return
-		}
-
-		_, err = db.Exec("INSERT INTO users(username, password) VALUES(?, ?)", username, hashedPassword)
-		if err != nil {
-			http.Error(res, "Server error, unable to create your account.", 500)
-			return
-		}
-
-		res.Write([]byte("User created!"))
-		return
-	case err != nil:
-		http.Error(res, "Server error, unable to create your account.", 500)
-		return
-	default:
-		http.Redirect(res, req, "/", 301)
-	}
-}
-
-func loginPage(res http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
-		http.ServeFile(res, req, "login.html")
-		return
-	}
-
-	username := req.FormValue("username")
-	password := req.FormValue("password")
-
-	var databaseUsername string
-	var databasePassword string
-
-	err := db.QueryRow("SELECT username, password FROM users WHERE username=?", username).Scan(&databaseUsername, &databasePassword)
-
-	if err != nil {
-		http.Redirect(res, req, "/login", 301)
-		return
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(databasePassword), []byte(password))
-	if err != nil {
-		http.Redirect(res, req, "/login", 301)
-		return
-	}
-
-	res.Write([]byte("Hello" + databaseUsername))
-
 }
 
 func homePage(res http.ResponseWriter, req *http.Request) {
@@ -125,4 +54,12 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func deleteUser(id int) {
+	// regarder si l'id correspond a l'utilisateur connecté
+
+	_, err := db.Exec("DELTE FROM users WHERE id=\"?\";", id)
+	checkErr(err)
+
 }
