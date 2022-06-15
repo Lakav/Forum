@@ -11,12 +11,7 @@ import (
 	"net/http"
 )
 
-var db *sql.DBINSERT INTO users (id, username, password)
-VALUES (
-	id:INTEGER,
-	'username:TEXT',
-	'password:TEXT'
-  );
+var db *sql.DB
 var err error
 
 func main() {
@@ -40,9 +35,11 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println(rows)
+
 	var id int
 	var username string
 	var password string
+
 	for rows.Next() {
 		rows.Scan(&id, &username, &password)
 		fmt.Println(strconv.Itoa(id) + ": " + username + " " + password)
