@@ -7,7 +7,6 @@ import (
 
 	"text/template"
 
-	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
