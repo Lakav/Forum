@@ -19,7 +19,7 @@ var store = sessions.NewCookieStore([]byte("super-secret"))
 
 func LoginPage(res http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
-		http.ServeFile(res, req, "login.html")
+		http.ServeFile(res, req, "public/login.html")
 		return
 	}
 	req.ParseForm()
@@ -45,30 +45,33 @@ func LoginPage(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if err == nil {
-		session, _ := store.Get(r, "session")
-		session.Values["userID"] = userID
-		session.Save(r, w)
-		tpl.ExecuteTemplate(w, "index.html", "Logged In")
+		session, _ := store.Get(req, "session")
+		var user string
+
+		userID := db.QueryRow("SELECT username FROM users WHERE username=?", username).Scan(&user)
+		session.Values["id"] = userID
+		session.Save(req, res)
+		tpl.ExecuteTemplate(res, "public/index.html", "Logged In")
 
 	}
 	fmt.Println("incorect password")
-	tpl.ExecuteTemplate(w, "login.html", "check username and password")
+	tpl.ExecuteTemplate(res, "public/login.html", "check username and password")
 }
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("*****indexHandler running*****")
 	session, _ := store.Get(r, "session")
-	_, ok := session.Values["userID"]
+	_, ok := session.Values["id"]
 	fmt.Println("ok: ", ok)
 	if !ok {
 		http.Redirect(w, r, "/login", http.StatusFound) // http.statusfound is 302
 		return
 	}
-	tpl.ExecuteTemplate(w, "index.html", "Logged In")
+	tpl.ExecuteTemplate(w, "public/index.html", "Logged In")
 }
 
 func SignupPage(res http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
-		http.ServeFile(res, req, "signup.html")
+		http.ServeFile(res, req, "public/signup.html")
 		return
 	}
 

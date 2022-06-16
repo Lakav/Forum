@@ -49,7 +49,7 @@ func main() {
 }
 
 func homePage(res http.ResponseWriter, req *http.Request) {
-	http.ServeFile(res, req, "index.html")
+	http.ServeFile(res, req, "public/index.html")
 }
 
 func checkErr(err error) {
