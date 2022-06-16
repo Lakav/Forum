@@ -19,7 +19,7 @@ var err error
 
 func main() {
 	db.Init()
-	rows, err := db.DB.Query("SELECT id, username, password FROM users WHERE username=\"dk\"")
+	rows, err := db.DB.Query("SELECT (id, username, password) FROM users WHERE username=\"?\"")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,12 +48,4 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func deleteUser(id int) {
-	// regarder si l'id correspond a l'utilisateur connecté
-
-	_, err := db.DB.Exec("DELTE FROM users WHERE id=\"?\";", id)
-	checkErr(err)
-
 }

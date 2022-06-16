@@ -2,9 +2,10 @@ package db
 
 import (
 	"database/sql"
-
 	"log"
 )
+
+var err error
 
 var DB *sql.DB
 
