@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SPORTS</title>
+</head>
+<body>
+    <h1>Login Page</h1>
+    {{ if .Error  }}
+        {{ .Error }}
+    {{ end }}
+    <form method="POST" action="/login">
+        <input type="text" name="username" placeholder="username">
+        <input type="password" name="password" placeholder="password">
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
