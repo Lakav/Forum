@@ -1,14 +1,15 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"strconv"
+
 	// "text/template"
 
 	"net/http"
 
+	"forumynov.com/db"
 	"forumynov.com/routes"
 	"github.com/gorilla/context"
 	_ "github.com/mattn/go-sqlite3"
@@ -16,18 +17,9 @@ import (
 
 var err error
 
-var db *sql.DB
-
 func main() {
-
-	database, connectionErr := sql.Open("sqlite3", "./database.db")
-	if connectionErr != nil {
-		log.Fatal(connectionErr)
-	}
-	defer database.Close()
-	db = database
-
-	rows, err := database.Query("SELECT id, username, password FROM users")
+	db.Init()
+	rows, err := db.DB.Query("SELECT id, username, password FROM users WHERE username=\"dk\"")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,6 +38,7 @@ func main() {
 	http.HandleFunc("/login", routes.LoginPage)
 	http.HandleFunc("/", homePage)
 	http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
+	defer db.DB.Close()
 }
 
 func homePage(res http.ResponseWriter, req *http.Request) {
@@ -61,7 +54,7 @@ func checkErr(err error) {
 func deleteUser(id int) {
 	// regarder si l'id correspond a l'utilisateur connecté
 
-	_, err := db.Exec("DELTE FROM users WHERE id=\"?\";", id)
+	_, err := db.DB.Exec("DELTE FROM users WHERE id=\"?\";", id)
 	checkErr(err)
 
 }

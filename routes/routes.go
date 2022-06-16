@@ -7,19 +7,21 @@ import (
 
 	"text/template"
 
+	"forumynov.com/db"
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var db *sql.DB
-
-var tpl *template.Template
-
 var store = sessions.NewCookieStore([]byte("super-secret"))
 
 func LoginPage(res http.ResponseWriter, req *http.Request) {
+	tpl := template.Must(template.ParseFiles("public/login.html"))
 	if req.Method != "POST" {
-		http.ServeFile(res, req, "public/login.html")
+		tpl.Execute(res, struct {
+			Error string
+		}{
+			Error: "",
+		})
 		return
 	}
 	req.ParseForm()
@@ -29,35 +31,49 @@ func LoginPage(res http.ResponseWriter, req *http.Request) {
 	var databaseUsername string
 	var databasePassword string
 
-	row := db.QueryRow("SELECT username, password FROM users WHERE username=\"?\" LIMIT 1;", username)
-
-	err := row.Scan(&databaseUsername, &databasePassword)
-
+	fmt.Println(username, password)
+	rows, err := db.DB.Query("SELECT username, password FROM users WHERE username=? LIMIT 1;", username)
 	if err != nil {
+		fmt.Println(err)
 		http.Redirect(res, req, "/login", 301)
 		return
 	}
-
+	defer rows.Close()
+	rows.Next()
+	err = rows.Scan(&databaseUsername, &databasePassword)
+	if err != nil {
+		fmt.Println(err)
+		tpl.Execute(res, struct {
+			Error string
+		}{
+			Error: "check username",
+		})
+		return
+	}
 	err = bcrypt.CompareHashAndPassword([]byte(databasePassword), []byte(password))
+
 	if err != nil {
-		http.Redirect(res, req, "/login", 301)
+		fmt.Println(err)
+		fmt.Println("incorect password")
+		tpl.Execute(res, struct {
+			Error string
+		}{
+			Error: "check username and password",
+		})
 		return
 	}
+	session, _ := store.Get(req, "session")
+	var user string
 
-	if err == nil {
-		session, _ := store.Get(req, "session")
-		var user string
+	userID := db.DB.QueryRow("SELECT username FROM users WHERE username=?", username).Scan(&user)
+	session.Values["id"] = userID
+	session.Save(req, res)
 
-		userID := db.QueryRow("SELECT username FROM users WHERE username=?", username).Scan(&user)
-		session.Values["id"] = userID
-		session.Save(req, res)
-		tpl.ExecuteTemplate(res, "public/index.html", "Logged In")
+	http.Redirect(res, req, "/", 301)
 
-	}
-	fmt.Println("incorect password")
-	tpl.ExecuteTemplate(res, "public/login.html", "check username and password")
 }
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	tpl := template.Must(template.ParseFiles("public/index.html"))
 	fmt.Println("*****indexHandler running*****")
 	session, _ := store.Get(r, "session")
 	_, ok := session.Values["id"]
@@ -66,7 +82,7 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusFound) // http.statusfound is 302
 		return
 	}
-	tpl.ExecuteTemplate(w, "public/index.html", "Logged In")
+	tpl.Execute(w, "Logged In")
 }
 
 func SignupPage(res http.ResponseWriter, req *http.Request) {
@@ -80,7 +96,7 @@ func SignupPage(res http.ResponseWriter, req *http.Request) {
 
 	var user string
 
-	err := db.QueryRow("SELECT username FROM users WHERE username=?", username).Scan(&user)
+	err := db.DB.QueryRow("SELECT username FROM users WHERE username=\"?\" LIMIT 1", username).Scan(&user)
 
 	switch {
 	case err == sql.ErrNoRows:
@@ -90,7 +106,7 @@ func SignupPage(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		_, err = db.Exec("INSERT INTO users(username, password) VALUES(?, ?)", username, hashedPassword)
+		_, err = db.DB.Exec("INSERT INTO users(username, password) VALUES(?, ?)", username, string(hashedPassword))
 		if err != nil {
 			http.Error(res, "Server error, unable to create your account.", 500)
 			return
