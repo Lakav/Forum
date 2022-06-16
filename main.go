@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	// "text/template"
 
 	"net/http"
 
-	"./auth"
+	"forumynov.com/routes"
+	"github.com/gorilla/context"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -40,10 +42,10 @@ func main() {
 		fmt.Println(strconv.Itoa(id) + ": " + username + " " + password)
 	}
 
-	http.HandleFunc("/signup", auth.SignupPage)
-	http.HandleFunc("/login", auth.LoginPage)
+	http.HandleFunc("/signup", routes.SignupPage)
+	http.HandleFunc("/login", routes.LoginPage)
 	http.HandleFunc("/", homePage)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
 }
 
 func homePage(res http.ResponseWriter, req *http.Request) {
