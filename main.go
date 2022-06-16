@@ -1,9 +1,15 @@
 package main
 
 import (
+<<<<<<< HEAD
 	// "fmt"
 	// "log"
 	// "strconv"
+=======
+	"fmt"
+	"log"
+	"strconv"
+>>>>>>> 962bbc009fcdc18a00d8265444f3ec19791a1fce
 
 	// "text/template"
 
@@ -18,8 +24,26 @@ import (
 var err error
 
 func main() {
+<<<<<<< HEAD
 
 	db.Init()
+=======
+	db.Init()
+	rows, err := db.DB.Query("SELECT (id, username, password) FROM users WHERE username=\"?\"")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(rows)
+
+	var id int
+	var username string
+	var password string
+
+	for rows.Next() {
+		rows.Scan(&id, &username, &password)
+		fmt.Println(strconv.Itoa(id) + ": " + username + " " + password)
+	}
+>>>>>>> 962bbc009fcdc18a00d8265444f3ec19791a1fce
 
 	http.HandleFunc("/signup", routes.SignupPage)
 	http.HandleFunc("/login", routes.LoginPage)
