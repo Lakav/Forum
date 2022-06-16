@@ -14,6 +14,29 @@ import (
 
 var store = sessions.NewCookieStore([]byte("super-secret"))
 
+func HomePage(res http.ResponseWriter, req *http.Request) {
+	http.ServeFile(res, req, "public/index.html")
+}
+
+func HomePageLogged(res http.ResponseWriter, req *http.Request) {
+	http.ServeFile(res, req, "public/indexLogged.html")
+}
+
+func clearSession(response http.ResponseWriter) {
+	cookie := &http.Cookie{
+		Name:   "session",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	}
+	http.SetCookie(response, cookie)
+}
+
+func LogoutPage(response http.ResponseWriter, request *http.Request) {
+	clearSession(response)
+	http.Redirect(response, request, "/", 302)
+}
+
 func LoginPage(res http.ResponseWriter, req *http.Request) {
 	tpl := template.Must(template.ParseFiles("public/login.html"))
 	if req.Method != "POST" {
@@ -69,9 +92,9 @@ func LoginPage(res http.ResponseWriter, req *http.Request) {
 	session.Values["id"] = userID
 	session.Save(req, res)
 
-	http.Redirect(res, req, "/", 301)
-
+	http.Redirect(res, req, "/logged", 301)
 }
+
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	tpl := template.Must(template.ParseFiles("public/index.html"))
 	fmt.Println("*****indexHandler running*****")

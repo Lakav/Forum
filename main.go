@@ -36,13 +36,12 @@ func main() {
 
 	http.HandleFunc("/signup", routes.SignupPage)
 	http.HandleFunc("/login", routes.LoginPage)
-	http.HandleFunc("/", homePage)
+	http.HandleFunc("/logout", routes.LogoutPage)
+	http.HandleFunc("/", routes.HomePage)
+	http.HandleFunc("/logged", routes.HomePageLogged)
+
 	http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
 	defer db.DB.Close()
-}
-
-func homePage(res http.ResponseWriter, req *http.Request) {
-	http.ServeFile(res, req, "public/index.html")
 }
 
 func checkErr(err error) {
